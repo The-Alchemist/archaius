@@ -19,9 +19,9 @@ import static org.junit.Assert.*;
 
 import java.util.List;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.BaseConfiguration;
+import org.apache.commons.configuration2.Configuration;
 import org.junit.Test;
 
 public class ConcurrentCompositeConfigurationTest {

@@ -17,7 +17,7 @@ package com.netflix.config;
 
 import static org.junit.Assert.*;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.Configuration;
 import org.junit.Test;
 
 public class DynamicPropertyFactoryTest {

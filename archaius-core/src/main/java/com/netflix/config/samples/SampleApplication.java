@@ -15,7 +15,7 @@
  */
 package com.netflix.config.samples;
 
-import org.apache.commons.configuration.AbstractConfiguration;
+import org.apache.commons.configuration2.AbstractConfiguration;
 
 import com.netflix.config.ConcurrentMapConfiguration;
 import com.netflix.config.DynamicIntProperty;

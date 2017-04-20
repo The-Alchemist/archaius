@@ -17,18 +17,18 @@ package com.netflix.config;
 
 import static org.junit.Assert.*;
 
-import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.event.ConfigurationEvent;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.BaseConfiguration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.EventListener;
 import org.junit.Test;
 
 public class DynamicPropertyInitializationTest {
     private volatile Object lastModified;
         
-    ConfigurationListener listener = new ConfigurationListener() {
+    EventListener<ConfigurationEvent> listener = new EventListener<ConfigurationEvent>() {
         
         @Override
-        public void configurationChanged(ConfigurationEvent arg0) {
+        public void onEvent(ConfigurationEvent arg0) {
             if (!arg0.isBeforeUpdate()) {
                 lastModified = arg0.getPropertyValue();
             }            
@@ -43,7 +43,7 @@ public class DynamicPropertyInitializationTest {
         assertNotNull(DynamicPropertyFactory.getBackingConfigurationSource());
         assertEquals("fromSystem", prop.get());
 
-        ConfigurationManager.getConfigInstance().addConfigurationListener(listener);
+        ConfigurationManager.getConfigInstance().addEventListener(ConfigurationEvent.ANY, listener);
 
         //Because SystemProperties default to higher priority than application settings, this set will no-op
         ConfigurationManager.getConfigInstance().setProperty("xyz", "override");
@@ -57,7 +57,7 @@ public class DynamicPropertyInitializationTest {
         ConfigurationManager.getConfigInstance().setProperty("xyz", "new");
         assertEquals("new", lastModified);
         assertEquals("new", prop.get());
-        assertEquals(3, newConfig.getConfigurationListeners().size());
+        assertEquals(3, newConfig.getEventListenerRegistrations().size());
     }
 
 }

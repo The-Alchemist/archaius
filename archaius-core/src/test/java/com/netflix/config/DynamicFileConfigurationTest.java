@@ -21,9 +21,9 @@ import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.event.ConfigurationEvent;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.EventListener;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
@@ -82,7 +82,7 @@ public class DynamicFileConfigurationTest {
         }.start();
     }
 
-	static class Listener implements ConfigurationListener {
+	static class Listener implements EventListener<ConfigurationEvent> {
 
 		volatile ConfigurationEvent lastEventBeforeUpdate;
 		
@@ -91,8 +91,8 @@ public class DynamicFileConfigurationTest {
 		AtomicInteger counter = new AtomicInteger();
 
 		@Override
-		public void configurationChanged(ConfigurationEvent event) {
-			System.out.println("Event received: " + event.getType() + "," + event.getPropertyName() + "," + event.isBeforeUpdate() + "," + event.getPropertyValue());
+		public void onEvent(ConfigurationEvent event) {
+			System.out.println("Event received: " + event.getEventType() + "," + event.getPropertyName() + "," + event.isBeforeUpdate() + "," + event.getPropertyValue());
 			counter.incrementAndGet();
 			if (event.isBeforeUpdate()) {
 				lastEventBeforeUpdate = event;
@@ -164,7 +164,7 @@ public class DynamicFileConfigurationTest {
         assertEquals(Double.valueOf(79.98), doubleProp.getValue());
         assertEquals(Long.valueOf(123456789L), longProp.getValue());
         modifyConfigFile();
-        ConfigurationManager.getConfigInstance().addConfigurationListener(listener);
+        ConfigurationManager.getConfigInstance().addEventListener(ConfigurationEvent.ANY, listener);
         Thread.sleep(1000);
         assertEquals(Long.MIN_VALUE, longProp.get());
         assertEquals(0, validatedProp.get());

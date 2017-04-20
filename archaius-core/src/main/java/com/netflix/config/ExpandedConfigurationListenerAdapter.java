@@ -15,11 +15,13 @@
  */
 package com.netflix.config;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.CombinedConfiguration;
-import org.apache.commons.configuration.HierarchicalConfiguration;
-import org.apache.commons.configuration.event.ConfigurationEvent;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.CombinedConfiguration;
+import org.apache.commons.configuration2.HierarchicalConfiguration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.Event;
+import org.apache.commons.configuration2.event.EventListener;
+import org.apache.commons.configuration2.event.EventType;
 
 /**
  * <p>An <code>ExpandedConfigurationListenerAdapter</code> wraps an instance
@@ -33,7 +35,7 @@ import org.apache.commons.configuration.event.ConfigurationListener;
  * methods in the {@link PropertyListener} will be called when there is a change in the configuration.
  *  
  */
-public class ExpandedConfigurationListenerAdapter implements ConfigurationListener
+public class ExpandedConfigurationListenerAdapter implements EventListener<ConfigurationEvent>
 {
     /** The wrapped PropertyListener. */
     private PropertyListener expandedListener;
@@ -77,13 +79,13 @@ public class ExpandedConfigurationListenerAdapter implements ConfigurationListen
 
     /**
      * {@inheritDoc}
-     * @see ConfigurationListener#configurationChanged(ConfigurationEvent)
+     * @see EventListener#onEvent(Event)
      */
     @SuppressWarnings("unchecked")
     @Override
-    public void configurationChanged(final ConfigurationEvent event) {
+    public void onEvent(final ConfigurationEvent event) {
 
-        if (pauseListener){
+        if (pauseListener) {
             return;
         }
 
@@ -95,53 +97,35 @@ public class ExpandedConfigurationListenerAdapter implements ConfigurationListen
 
 
         // Handle the different types.
-        switch (event.getType()) {
+        EventType<? extends Event> eventType = event.getEventType();
 
         // Key identifies node where the Collection of nodes was added, or
         // null if it was at the root.
-        case HierarchicalConfiguration.EVENT_ADD_NODES:
-        case ConcurrentCompositeConfiguration.EVENT_CONFIGURATION_SOURCE_CHANGED:    
+        if (EventType.isInstanceOf(eventType, ConfigurationEvent.ADD_NODES) ||
+                EventType.isInstanceOf(eventType, ConfigurationEvent.SUBNODE_CHANGED)) {
+
             expandedListener.configSourceLoaded(source);
-            break;
-
-        // Key identifies the individual property that was added.
-        case AbstractConfiguration.EVENT_ADD_PROPERTY:
+        } else if (EventType.isInstanceOf(eventType, ConfigurationEvent.ADD_PROPERTY)) {
             expandedListener.addProperty(source, name, value, beforeUpdate);
-            break;
 
-        // Entire configuration was cleared.
-        case AbstractConfiguration.EVENT_CLEAR:
+
+            // Entire configuration was cleared.
+        } else if (EventType.isInstanceOf(eventType, ConfigurationEvent.CLEAR)) {
             expandedListener.clear(source, beforeUpdate);
-            break;
 
-        // Key identifies the single property that was cleared.
-        case AbstractConfiguration.EVENT_CLEAR_PROPERTY:
+            // Key identifies the single property that was cleared.
+        } else if (EventType.isInstanceOf(eventType, ConfigurationEvent.CLEAR_PROPERTY)) {
             expandedListener.clearProperty(source, name, value, beforeUpdate);
-            break;
 
-        // Key identifies the nodes that were removed, along with all its
-        // children. Value after update is the List of nodes that were
-        // cleared. Before the update, the value is null.
-        case HierarchicalConfiguration.EVENT_CLEAR_TREE:
+            // Key identifies the nodes that were removed, along with all its
+            // children. Value after update is the List of nodes that were
+            // cleared. Before the update, the value is null.
+        } else if (EventType.isInstanceOf(eventType, ConfigurationEvent.CLEAR_TREE)) {
             // Ignore this. We rewrote the clearTree() method below.
-            break;
 
-        // The current property set is invalid.
-        case CombinedConfiguration.EVENT_COMBINED_INVALIDATE:
-            //listener.configSourceLoaded(source);
-            break;
-
-        // Key identifies the property that was read.
-        case AbstractConfiguration.EVENT_READ_PROPERTY:
-            break;
-
-        // Key identifies the property that was set.
-        case AbstractConfiguration.EVENT_SET_PROPERTY:
+        } else if(EventType.isInstanceOf(eventType, ConfigurationEvent.SET_PROPERTY)) {
+            // Key identifies the property that was set.
             expandedListener.setProperty(source, name, value, beforeUpdate);
-            break;
-            
-        default:
-            break;
         }
     }
 

@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.commons.configuration.AbstractConfiguration;
+import org.apache.commons.configuration2.AbstractConfiguration;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -49,7 +49,6 @@ public class DynamicURLConfigurationTestWithFileURL {
         File file = File.createTempFile("DynamicURLConfigurationTestWithFileURL", "testFileURLWithPropertiesUpdatedDynamically");
         populateFile(file, "test.host=12312,123213", "test.host1=13212");
 
-        AbstractConfiguration.setDefaultListDelimiter(',');
         DynamicURLConfiguration config = new DynamicURLConfiguration(0, 500, false, file.toURI().toString());
         Thread.sleep(1000);
         Assert.assertEquals(13212, config.getInt("test.host1"));

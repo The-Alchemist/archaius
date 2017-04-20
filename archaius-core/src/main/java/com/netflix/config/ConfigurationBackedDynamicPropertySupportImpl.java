@@ -15,7 +15,8 @@
  */
 package com.netflix.config;
 
-import org.apache.commons.configuration.AbstractConfiguration;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
 
 public class ConfigurationBackedDynamicPropertySupportImpl implements DynamicPropertySupport {
 
@@ -62,7 +63,7 @@ public class ConfigurationBackedDynamicPropertySupportImpl implements DynamicPro
     @Override
     public void addConfigurationListener(PropertyListener expandedConfigListener) {
         ExpandedConfigurationListenerAdapter nl = new ExpandedConfigurationListenerAdapter(expandedConfigListener);
-        config.addConfigurationListener(nl);    
+        config.addEventListener(ConfigurationEvent.ANY, nl);
     }
     
     public final AbstractConfiguration getConfiguration() {

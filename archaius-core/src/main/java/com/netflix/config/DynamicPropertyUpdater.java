@@ -15,21 +15,16 @@
  */
 package com.netflix.config;
 
-import com.google.common.base.Splitter;
-
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Splitter;
 import com.netflix.config.validation.ValidationException;
 
 /**
@@ -126,19 +121,8 @@ public class DynamicPropertyUpdater {
                 Object oldValue = config.getProperty(name);
              
                 if (newValue != null) {
-                    Object newValueArray;
-                    if (oldValue instanceof CopyOnWriteArrayList && AbstractConfiguration.getDefaultListDelimiter() != '\0'){
-                        newValueArray = 
-                                        new CopyOnWriteArrayList();
-                        
-                      Iterable<String> stringiterator = Splitter.on(AbstractConfiguration.getDefaultListDelimiter()).omitEmptyStrings().trimResults().split((String)newValue);
-                      for(String s :stringiterator){
-                            ((CopyOnWriteArrayList) newValueArray).add(s);
-                        }
-                      } else {
-                          newValueArray = newValue;
-                      }
-                  
+                    Object newValueArray = newValue;
+
                     if (!newValueArray.equals(oldValue)) {
                         logger.debug("updating property key [{}], value [{}]", name, newValue);
     

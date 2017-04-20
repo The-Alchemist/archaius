@@ -17,7 +17,8 @@ package com.netflix.config;
 
 import static org.junit.Assert.*;
 
-import org.apache.commons.configuration.AbstractConfiguration;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
 import org.junit.Test;
 
 public class PropertyListenerTest {
@@ -25,7 +26,7 @@ public class PropertyListenerTest {
     @Test
     public void testAddPropertyListener() {
         AbstractConfiguration config = ConfigurationManager.getConfigInstance();
-        config.addConfigurationListener(new ExpandedConfigurationListenerAdapter(new MyListener()));
+        config.addEventListener(ConfigurationEvent.ANY, new ExpandedConfigurationListenerAdapter(new MyListener()));
         // config.addConfigurationListener(new MyListener());
         config.setProperty("xyz", "abcc");
         assertEquals(1, MyListener.count);

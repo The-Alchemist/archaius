@@ -15,7 +15,7 @@
  */
 package com.netflix.config.jmx;
 
-import org.apache.commons.configuration.AbstractConfiguration;
+import org.apache.commons.configuration2.AbstractConfiguration;
 
 import com.netflix.config.ConcurrentCompositeConfiguration;
 import com.netflix.config.util.ConfigurationUtils;

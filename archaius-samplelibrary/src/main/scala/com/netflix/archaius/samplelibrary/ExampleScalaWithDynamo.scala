@@ -18,7 +18,7 @@ package com.netflix.archaius.samplelibrary
 import com.netflix.config._
 import com.amazonaws.auth.AWSCredentials
 import com.netflix.config.sources.DynamoDbConfigurationSource
-import org.apache.commons.configuration.AbstractConfiguration
+import org.apache.commons.configuration2.AbstractConfiguration
 import com.amazonaws.services.dynamodb.AmazonDynamoDBClient
 /**
  * User: gorzell

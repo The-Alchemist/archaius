@@ -16,13 +16,16 @@
 package com.netflix.config;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.Properties;
 
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,17 +117,18 @@ public class WebApplicationProperties {
 	}
 
 	protected static void initApplicationProperties()
-			throws ConfigurationException, MalformedURLException {
+			throws IOException, ConfigurationException {
 		File appPropFile = new File(appConfFolder + "/" + baseConfigFileName + ".properties");
 		File appEnvPropOverrideFile = new File(appConfFolder + "/" + baseConfigFileName +
 		 getEnvironment() + ".properties");
 		
 		 
 		// TODO awang, how do we add this to archaius default config?
-		PropertiesConfiguration appConf = new PropertiesConfiguration(
-				appPropFile);
+		PropertiesConfiguration appConf = new PropertiesConfiguration();
+		appConf.read(new FileReader(appPropFile));
 		// apply env overrides
-		PropertiesConfiguration overrideConf = new PropertiesConfiguration(appEnvPropOverrideFile);
+		PropertiesConfiguration overrideConf = new PropertiesConfiguration();
+		overrideConf.read(new FileReader(appEnvPropOverrideFile)); //TODO(kp): close the stream
 		Properties overrideprops = ConfigurationUtils.getProperties(overrideConf);
 		for (Object prop: overrideprops.keySet()){
 			appConf.setProperty(""+prop, overrideprops.getProperty(""+prop));

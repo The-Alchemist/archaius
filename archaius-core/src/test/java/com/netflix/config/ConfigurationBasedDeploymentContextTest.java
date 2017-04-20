@@ -15,7 +15,7 @@
  */
 package com.netflix.config;
 
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.Configuration;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

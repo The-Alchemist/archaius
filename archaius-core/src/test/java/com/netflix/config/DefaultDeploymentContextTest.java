@@ -17,7 +17,7 @@ package com.netflix.config;
 
 import static org.junit.Assert.*;
 
-import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.commons.configuration2.CompositeConfiguration;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

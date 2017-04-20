@@ -17,6 +17,7 @@ package com.netflix.config.util;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -31,11 +32,11 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.CombinedConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
-import org.apache.commons.configuration.PropertiesConfiguration;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.CombinedConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -279,17 +280,61 @@ class OverridingPropertiesConfiguration extends PropertiesConfiguration {
 
     public OverridingPropertiesConfiguration(File file)
             throws ConfigurationException {
-        super(file);
+
+        // TODO: wrap with try-with-resources when built with Java 7
+        FileReader fr = null;
+        try {
+            fr = new FileReader(file);
+            this.read(fr);
+        } catch (IOException e) {
+            throw new ConfigurationException(e);
+        } finally {
+            if(fr != null) {
+                try {
+                    fr.close();
+                } catch (IOException e) {
+                }
+            }
+        }
     }
 
     public OverridingPropertiesConfiguration(String fileName)
             throws ConfigurationException {
-        super(fileName);
+
+        // TODO: wrap with try-with-resources when built with Java 7
+        FileReader fr = null;
+        try {
+            fr = new FileReader(fileName);
+            this.read(fr);
+        } catch (IOException e) {
+            throw new ConfigurationException(e);
+        } finally {
+            if(fr != null) {
+                try {
+                    fr.close();
+                } catch (IOException e) {
+                }
+            }
+        }
     }
 
     public OverridingPropertiesConfiguration(URL url)
             throws ConfigurationException {
-        super(url);
+        // TODO: wrap with try-with-resources when built with Java 7
+        InputStreamReader fr = null;
+        try {
+            fr = new InputStreamReader(url.openStream());
+            this.read(fr);
+        } catch (IOException e) {
+            throw new ConfigurationException(e);
+        } finally {
+            if(fr != null) {
+                try {
+                    fr.close();
+                } catch (IOException e) {
+                }
+            }
+        }
     }
     
     /**
@@ -297,7 +342,7 @@ class OverridingPropertiesConfiguration extends PropertiesConfiguration {
      * 
      */
     @Override
-    public void addProperty(String name, Object value) {
+    public void addPropertyInternal(String name, Object value) {
         if (containsKey(name)) {
             // clear without triggering an event
             clearPropertyDirect(name);

@@ -29,14 +29,18 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationRuntimeException;
-import org.apache.commons.configuration.ConfigurationUtils;
-import org.apache.commons.configuration.HierarchicalConfiguration;
-import org.apache.commons.configuration.event.ConfigurationEvent;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ConfigurationUtils;
+import org.apache.commons.configuration2.HierarchicalConfiguration;
+import org.apache.commons.configuration2.convert.DefaultListDelimiterHandler;
+import org.apache.commons.configuration2.convert.DisabledListDelimiterHandler;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.Event;
+import org.apache.commons.configuration2.event.EventListener;
 
+import org.apache.commons.configuration2.event.EventType;
+import org.apache.commons.configuration2.ex.ConfigurationRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -99,16 +103,18 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration 
-        implements AggregatedConfiguration, ConfigurationListener, Cloneable {
+        implements AggregatedConfiguration, Cloneable {
 
     private Map<String, AbstractConfiguration> namedConfigurations = new ConcurrentHashMap<String, AbstractConfiguration>();
     
     private List<AbstractConfiguration> configList = new CopyOnWriteArrayList<AbstractConfiguration>();
     
     private static final Logger logger = LoggerFactory.getLogger(ConcurrentCompositeConfiguration.class);
-    
-    public static final int EVENT_CONFIGURATION_SOURCE_CHANGED = 10001;
-    
+
+    public static final EventType<ConfigurationEvent> EVENT_CONFIGURATION_SOURCE_CHANGED =
+            new EventType<ConfigurationEvent>(ConfigurationEvent.ANY,
+                    "EVENT_CONFIGURATION_SOURCE_CHANGED");
+
     private volatile boolean propagateEventToParent = true;
     
     private AbstractConfiguration overrideProperties;
@@ -124,50 +130,44 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      */
     private volatile boolean containerConfigurationChanged = true;
 
-    private ConfigurationListener eventPropagater = new ConfigurationListener() {
+    private EventListener<ConfigurationEvent> eventPropagater = new EventListener<ConfigurationEvent>() {
         @Override
-        public void configurationChanged(ConfigurationEvent event) {
+        public void onEvent(ConfigurationEvent event) {
             boolean beforeUpdate = event.isBeforeUpdate();
             if (propagateEventToParent) {
-                int type = event.getType();
+                EventType<ConfigurationEvent> type = (EventType<ConfigurationEvent>) event.getEventType();
                 String name = event.getPropertyName();
                 Object value = event.getPropertyValue();
                 Object finalValue;
-                switch(type) {
-                case HierarchicalConfiguration.EVENT_ADD_NODES:
-                case EVENT_CLEAR:
-                case EVENT_CONFIGURATION_SOURCE_CHANGED:
+                if(type == ConfigurationEvent.ADD_NODES ||
+                   type == ConfigurationEvent.CLEAR ||
+                   type == EVENT_CONFIGURATION_SOURCE_CHANGED) {
                     fireEvent(type, name, value, beforeUpdate);
-                    break;
-
-                case EVENT_ADD_PROPERTY:
-                case EVENT_SET_PROPERTY:
+                }
+                else if(type == ConfigurationEvent.ADD_PROPERTY ||
+                        type == ConfigurationEvent.SET_PROPERTY) {
                     if (beforeUpdate) {
                         // we want the validators to run even if the source is not
                         // the winning configuration
-                        fireEvent(type, name, value, beforeUpdate);                                                
+                        fireEvent(type, name, value, beforeUpdate);
                     } else {
                         AbstractConfiguration sourceConfig = (AbstractConfiguration) event.getSource();
                         AbstractConfiguration winningConf = (AbstractConfiguration) getSource(name);
                         if (winningConf == null || getIndexOfConfiguration(sourceConfig) <= getIndexOfConfiguration(winningConf)) {
-                            fireEvent(type, name, value, beforeUpdate);                        
-                        } 
+                            fireEvent(type, name, value, beforeUpdate);
+                        }
                     }
-                    break;
-                case EVENT_CLEAR_PROPERTY:
+                } else if(type == ConfigurationEvent.CLEAR_PROPERTY) {
                     finalValue = ConcurrentCompositeConfiguration.this.getProperty(name);
                     if (finalValue == null) {
-                        fireEvent(type, name, value, beforeUpdate);                        
+                        fireEvent(type, name, value, beforeUpdate);
                     } else {
-                        fireEvent(EVENT_SET_PROPERTY, name, finalValue, beforeUpdate);
+                        fireEvent(ConfigurationEvent.SET_PROPERTY, name, finalValue, beforeUpdate);
                     }
-                    break;
-                default:
-                    break;
+                }
 
                 }
-            }            
-        }        
+            }
     };
     
     /**
@@ -176,7 +176,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      */
     public ConcurrentCompositeConfiguration()
     {
-        clear();
+        clearInternal();
     }
 
     
@@ -214,18 +214,6 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
                 addConfiguration(c);
             }
         }
-    }
-
-    /**
-     * Event listener call back for configuration update events. This method is
-     * called whenever one of the contained configurations was modified. This method 
-     * does nothing.
-     *
-     * @param event the update event
-     */
-    @Override
-    public void configurationChanged(ConfigurationEvent event)
-    {
     }
 
     public void invalidate()
@@ -360,7 +348,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
             if (name != null) {
                 namedConfigurations.put(name, config);
             }
-            config.addConfigurationListener(eventPropagater);
+            config.addEventListener(ConfigurationEvent.ANY, eventPropagater);
             fireEvent(EVENT_CONFIGURATION_SOURCE_CHANGED, null, null, false);
         } else {
             logger.warn(config + " is not added as it already exits");
@@ -437,26 +425,28 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      * configuration is created; the old one is lost.
      */
     @Override
-    public final void clear()
+    public final void clearInternal()
     {
-        fireEvent(EVENT_CLEAR, null, null, true);
+        fireEvent(ConfigurationEvent.CLEAR, null, null, true);
         configList.clear();
         namedConfigurations.clear();
         // recreate the in memory configuration
-        containerConfiguration = new ConcurrentMapConfiguration();
-        containerConfiguration.setThrowExceptionOnMissing(isThrowExceptionOnMissing());
-        containerConfiguration.setListDelimiter(getListDelimiter());
-        containerConfiguration.setDelimiterParsingDisabled(isDelimiterParsingDisabled());
-        containerConfiguration.addConfigurationListener(eventPropagater);
+        ConcurrentMapConfiguration config = new ConcurrentMapConfiguration();
+        containerConfiguration = config;
+        config.setThrowExceptionOnMissing(isThrowExceptionOnMissing());
+        config.setListDelimiter(getListDelimiter());
+        config.setDelimiterParsingDisabled(isDelimiterParsingDisabled());
+        config.addConfigurationListener(eventPropagater);
         configList.add(containerConfiguration);
-        
-        overrideProperties = new ConcurrentMapConfiguration();
-        overrideProperties.setThrowExceptionOnMissing(isThrowExceptionOnMissing());
-        overrideProperties.setListDelimiter(getListDelimiter());
-        overrideProperties.setDelimiterParsingDisabled(isDelimiterParsingDisabled());
-        overrideProperties.addConfigurationListener(eventPropagater);
-        
-        fireEvent(EVENT_CLEAR, null, null, false);
+
+        ConcurrentMapConfiguration overrideConfig = new ConcurrentMapConfiguration();
+        overrideProperties = overrideConfig;
+        overrideConfig.setThrowExceptionOnMissing(isThrowExceptionOnMissing());
+        overrideConfig.setListDelimiter(getListDelimiter());
+        overrideConfig.setDelimiterParsingDisabled(isDelimiterParsingDisabled());
+        overrideConfig.addConfigurationListener(eventPropagater);
+
+        fireEvent(ConfigurationEvent.CLEAR, null, null, false);
         containerConfigurationChanged = false;
         invalidate();
     }
@@ -482,7 +472,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      * <em>container configuration</em> in the configurations list.
      */
     @Override
-    public void setProperty(String key, Object value) {
+    public void setPropertyInternal(String key, Object value) {
         containerConfiguration.setProperty(key, value);
     }
 
@@ -493,7 +483,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      * <em>container configuration</em> in the configurations list.
      */
     @Override
-    public void addProperty(String key, Object value) {
+    public void addPropertyInternal(String key, Object value) {
         containerConfiguration.addProperty(key, value);
     }
     
@@ -505,7 +495,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      */
 
     @Override
-    public void clearProperty(String key) {
+    public void clearPropertyDirect(String key) {
         containerConfiguration.clearProperty(key);
     }
     /**
@@ -519,7 +509,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      *
      * @return object associated with the given configuration key. null if it does not exist.
      */
-    public Object getProperty(String key)
+    public Object getPropertyInternal(String key)
     {
         if (overrideProperties.containsKey(key)) {
             return overrideProperties.getProperty(key);
@@ -551,7 +541,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      * when it is iterated to get all the keys
      * 
      */
-    public Iterator<String> getKeys() throws ConcurrentModificationException
+    public Iterator<String> getKeysInternal() throws ConcurrentModificationException
     {
         Set<String> keys = new LinkedHashSet<String>();
         for (Iterator<String> it = overrideProperties.getKeys(); it.hasNext();) {
@@ -589,7 +579,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      * 
      */
     @Override
-    public Iterator<String> getKeys(String prefix)
+    public Iterator<String> getKeysInternal(String prefix)
     {
         Set<String> keys = new LinkedHashSet<String>();
         for (Iterator<String> it = overrideProperties.getKeys(prefix); it.hasNext();) {
@@ -620,7 +610,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
     }
     
     @Override
-    public boolean isEmpty()
+    public boolean isEmptyInternal()
     {
         if (overrideProperties.isEmpty()) {
             return false;
@@ -646,7 +636,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      * 
      */
     @Override
-    public boolean containsKey(String key)
+    public boolean containsKeyInternal(String key)
     {
         if (overrideProperties.containsKey(key)) {
             return true;
@@ -783,7 +773,7 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
         {
             ConcurrentCompositeConfiguration copy = (ConcurrentCompositeConfiguration) super
                     .clone();
-            copy.clearConfigurationListeners();
+            copy.getEventListenerRegistrations().clear();
             copy.configList = new LinkedList<AbstractConfiguration>();
             copy.containerConfiguration = (AbstractConfiguration) ConfigurationUtils
                     .cloneConfiguration(getContainerConfiguration());
@@ -817,7 +807,12 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
     @Override
     public void setDelimiterParsingDisabled(boolean delimiterParsingDisabled)
     {
-        containerConfiguration.setDelimiterParsingDisabled(delimiterParsingDisabled);
+        if(delimiterParsingDisabled) {
+            containerConfiguration.setListDelimiterHandler(DisabledListDelimiterHandler.INSTANCE);
+        } else {
+            containerConfiguration.setListDelimiterHandler(new DefaultListDelimiterHandler(','));
+
+        }
         super.setDelimiterParsingDisabled(delimiterParsingDisabled);
     }
 
@@ -827,11 +822,10 @@ public class ConcurrentCompositeConfiguration extends ConcurrentMapConfiguration
      *
      * @param listDelimiter the new list delimiter character
      */
-    @Override
     public void setListDelimiter(char listDelimiter)
     {
-        containerConfiguration.setListDelimiter(listDelimiter);
-        super.setListDelimiter(listDelimiter);
+        containerConfiguration.setListDelimiterHandler(new DefaultListDelimiterHandler(listDelimiter));
+        super.setListDelimiterHandler(new DefaultListDelimiterHandler(listDelimiter));
     }
 
     /**

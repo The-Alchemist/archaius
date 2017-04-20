@@ -17,9 +17,9 @@ package com.netflix.config;
 
 import static org.junit.Assert.*;
 
-import org.apache.commons.configuration.BaseConfiguration;
-import org.apache.commons.configuration.event.ConfigurationEvent;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.BaseConfiguration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.EventListener;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -28,14 +28,14 @@ public class ListenerTest {
 	static ConcurrentCompositeConfiguration conf = (ConcurrentCompositeConfiguration) ConfigurationManager.getConfigInstance();
 	static ConcurrentMapConfiguration config1 = new ConcurrentMapConfiguration();
 	
-	static class Listener implements ConfigurationListener {
+	static class Listener implements EventListener<ConfigurationEvent> {
 
 		volatile ConfigurationEvent lastEventBeforeUpdate;
 		
 		volatile ConfigurationEvent lastEventAfterUpdate;
 
 		@Override
-		public void configurationChanged(ConfigurationEvent event) {
+		public void onEvent(ConfigurationEvent event) {
 			if (event.isBeforeUpdate()) {
 				lastEventBeforeUpdate = event;
 			} else {

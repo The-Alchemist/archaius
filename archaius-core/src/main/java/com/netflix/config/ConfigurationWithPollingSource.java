@@ -15,14 +15,22 @@
  */
 package com.netflix.config;
 
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.ConfigurationDecoder;
+import org.apache.commons.configuration2.ImmutableConfiguration;
+import org.apache.commons.configuration2.interpol.ConfigurationInterpolator;
+import org.apache.commons.configuration2.interpol.Lookup;
+import org.apache.commons.configuration2.sync.LockMode;
+import org.apache.commons.configuration2.sync.Synchronizer;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
 
 /**
  * This class delegates property read/write to an another configuration but is also attached with 
@@ -40,16 +48,16 @@ public class ConfigurationWithPollingSource implements Configuration {
 
     private final Configuration config;
     private final AbstractPollingScheduler scheduler;
-    
+
     /**
      * Create an instance and start polling the configuration source
-     * 
+     *
      * @param config Configuration to delegate to
      * @param source {@link PolledConfigurationSource} to poll get new/changed properties
      * @param scheduler AbstractPollingScheduler to provide the polling schedule
      */
-    public ConfigurationWithPollingSource(Configuration config, PolledConfigurationSource source, 
-            AbstractPollingScheduler scheduler) {
+    public ConfigurationWithPollingSource(Configuration config, PolledConfigurationSource source,
+                                          AbstractPollingScheduler scheduler) {
         this.config = config;
         this.scheduler = scheduler;
         scheduler.startPolling(source, this);
@@ -58,344 +66,313 @@ public class ConfigurationWithPollingSource implements Configuration {
     public final Configuration getConfiguration() {
         return config;
     }
-    
+
     public final void stopPolling() {
         scheduler.stop();
     }
-    
-    /**
-     * Delegates to the underlying configuration.
-     */
+
+    @Override
+    public Configuration subset(String prefix) {
+        return config.subset(prefix);
+    }
+
     @Override
     public void addProperty(String key, Object value) {
         config.addProperty(key, value);
     }
 
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public void clear() {
-        config.clear();
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public void clearProperty(String key) {
-        config.clearProperty(key);
-    }
-
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public boolean containsKey(String arg0) {
-        return config.containsKey(arg0);
-    }
-
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public BigDecimal getBigDecimal(String key, BigDecimal defaultValue) {
-        return config.getBigDecimal(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public BigDecimal getBigDecimal(String key) {
-        return config.getBigDecimal(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public BigInteger getBigInteger(String key, BigInteger defaultValue) {
-        return config.getBigInteger(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public BigInteger getBigInteger(String key) {
-        return config.getBigInteger(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public boolean getBoolean(String key, boolean defaultValue) {
-        return config.getBoolean(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Boolean getBoolean(String key, Boolean defaultValue) {
-        return config.getBoolean(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public boolean getBoolean(String key) {
-        return config.getBoolean(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public byte getByte(String key, byte defaultValue) {
-        return config.getByte(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Byte getByte(String key, Byte defaultValue) {
-        return config.getByte(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public byte getByte(String key) {
-        return config.getByte(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public double getDouble(String key, double defaultValue) {
-        return config.getDouble(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Double getDouble(String key, Double defaultValue) {
-        return config.getDouble(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public double getDouble(String key) {
-        return config.getDouble(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public float getFloat(String key, float defaultValue) {
-        return config.getFloat(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Float getFloat(String key, Float defaultValue) {
-        return config.getFloat(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public float getFloat(String key) {
-        return config.getFloat(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public int getInt(String key, int defaultValue) {
-        return config.getInt(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public int getInt(String key) {
-        return config.getInt(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Integer getInteger(String key, Integer defaultValue) {
-        return config.getInteger(key, defaultValue);
-    }
-
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Iterator getKeys() {
-        return config.getKeys();
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Iterator getKeys(String prefix) {
-        return config.getKeys(prefix);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public List getList(String key, List defaultValue) {
-        return config.getList(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public List getList(String key) {
-        return config.getList(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public long getLong(String key, long defaultValue) {
-        return config.getLong(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Long getLong(String key, Long defaultValue) {
-        return config.getLong(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public long getLong(String key) {
-        return config.getLong(key);
-    }
-
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Properties getProperties(String key) {
-        return config.getProperties(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Object getProperty(String arg0) {
-        return config.getProperty(arg0);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public short getShort(String key, short defaultValue) {
-        return config.getShort(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public Short getShort(String key, Short defaultValue) {
-        return config.getShort(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public short getShort(String key) {
-        return config.getShort(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public String getString(String key, String defaultValue) {
-        return config.getString(key, defaultValue);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public String getString(String key) {
-        return config.getString(key);
-    }
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public String[] getStringArray(String key) {
-        return config.getStringArray(key);
-    }
-
-
-    /**
-     * Delegates to the underlying configuration.
-     */
-    @Override
-    public boolean isEmpty() {
-        return config.isEmpty();
-    }
-
-
-    /**
-     * Delegates to the underlying configuration.
-     */
     @Override
     public void setProperty(String key, Object value) {
         config.setProperty(key, value);
     }
 
-
-    /**
-     * Delegates to the underlying configuration.
-     */
     @Override
-    public Configuration subset(String prefix) {
-        return config.subset(prefix);
+    public void clearProperty(String key) {
+        config.clearProperty(key);
     }
+
+    @Override
+    public void clear() {
+        config.clear();
+    }
+
+    @Override
+    public ConfigurationInterpolator getInterpolator() {
+        return config.getInterpolator();
+    }
+
+    @Override
+    public void setInterpolator(ConfigurationInterpolator ci) {
+        config.setInterpolator(ci);
+    }
+
+    @Override
+    public void installInterpolator(Map<String, ? extends Lookup> prefixLookups, Collection<? extends Lookup> defLookups) {
+        config.installInterpolator(prefixLookups, defLookups);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return config.isEmpty();
+    }
+
+    @Override
+    public int size() {
+        return config.size();
+    }
+
+    @Override
+    public boolean containsKey(String key) {
+        return config.containsKey(key);
+    }
+
+    @Override
+    public Object getProperty(String key) {
+        return config.getProperty(key);
+    }
+
+    @Override
+    public Iterator<String> getKeys(String prefix) {
+        return config.getKeys(prefix);
+    }
+
+    @Override
+    public Iterator<String> getKeys() {
+        return config.getKeys();
+    }
+
+    @Override
+    public Properties getProperties(String key) {
+        return config.getProperties(key);
+    }
+
+    @Override
+    public boolean getBoolean(String key) {
+        return config.getBoolean(key);
+    }
+
+    @Override
+    public boolean getBoolean(String key, boolean defaultValue) {
+        return config.getBoolean(key, defaultValue);
+    }
+
+    @Override
+    public Boolean getBoolean(String key, Boolean defaultValue) {
+        return config.getBoolean(key, defaultValue);
+    }
+
+    @Override
+    public byte getByte(String key) {
+        return config.getByte(key);
+    }
+
+    @Override
+    public byte getByte(String key, byte defaultValue) {
+        return config.getByte(key, defaultValue);
+    }
+
+    @Override
+    public Byte getByte(String key, Byte defaultValue) {
+        return config.getByte(key, defaultValue);
+    }
+
+    @Override
+    public double getDouble(String key) {
+        return config.getDouble(key);
+    }
+
+    @Override
+    public double getDouble(String key, double defaultValue) {
+        return config.getDouble(key, defaultValue);
+    }
+
+    @Override
+    public Double getDouble(String key, Double defaultValue) {
+        return config.getDouble(key, defaultValue);
+    }
+
+    @Override
+    public float getFloat(String key) {
+        return config.getFloat(key);
+    }
+
+    @Override
+    public float getFloat(String key, float defaultValue) {
+        return config.getFloat(key, defaultValue);
+    }
+
+    @Override
+    public Float getFloat(String key, Float defaultValue) {
+        return config.getFloat(key, defaultValue);
+    }
+
+    @Override
+    public int getInt(String key) {
+        return config.getInt(key);
+    }
+
+    @Override
+    public int getInt(String key, int defaultValue) {
+        return config.getInt(key, defaultValue);
+    }
+
+    @Override
+    public Integer getInteger(String key, Integer defaultValue) {
+        return config.getInteger(key, defaultValue);
+    }
+
+    @Override
+    public long getLong(String key) {
+        return config.getLong(key);
+    }
+
+    @Override
+    public long getLong(String key, long defaultValue) {
+        return config.getLong(key, defaultValue);
+    }
+
+    @Override
+    public Long getLong(String key, Long defaultValue) {
+        return config.getLong(key, defaultValue);
+    }
+
+    @Override
+    public short getShort(String key) {
+        return config.getShort(key);
+    }
+
+    @Override
+    public short getShort(String key, short defaultValue) {
+        return config.getShort(key, defaultValue);
+    }
+
+    @Override
+    public Short getShort(String key, Short defaultValue) {
+        return config.getShort(key, defaultValue);
+    }
+
+    @Override
+    public BigDecimal getBigDecimal(String key) {
+        return config.getBigDecimal(key);
+    }
+
+    @Override
+    public BigDecimal getBigDecimal(String key, BigDecimal defaultValue) {
+        return config.getBigDecimal(key, defaultValue);
+    }
+
+    @Override
+    public BigInteger getBigInteger(String key) {
+        return config.getBigInteger(key);
+    }
+
+    @Override
+    public BigInteger getBigInteger(String key, BigInteger defaultValue) {
+        return config.getBigInteger(key, defaultValue);
+    }
+
+    @Override
+    public String getString(String key) {
+        return config.getString(key);
+    }
+
+    @Override
+    public String getString(String key, String defaultValue) {
+        return config.getString(key, defaultValue);
+    }
+
+    @Override
+    public String getEncodedString(String key, ConfigurationDecoder decoder) {
+        return config.getEncodedString(key, decoder);
+    }
+
+    @Override
+    public String getEncodedString(String key) {
+        return config.getEncodedString(key);
+    }
+
+    @Override
+    public String[] getStringArray(String key) {
+        return config.getStringArray(key);
+    }
+
+    @Override
+    public List<Object> getList(String key) {
+        return config.getList(key);
+    }
+
+    @Override
+    public List<Object> getList(String key, List<?> defaultValue) {
+        return config.getList(key, defaultValue);
+    }
+
+    @Override
+    public <T> T get(Class<T> cls, String key) {
+        return config.get(cls, key);
+    }
+
+    @Override
+    public <T> T get(Class<T> cls, String key, T defaultValue) {
+        return config.get(cls, key, defaultValue);
+    }
+
+    @Override
+    public Object getArray(Class<?> cls, String key) {
+        return config.getArray(cls, key);
+    }
+
+    @Override
+    @Deprecated
+    public Object getArray(Class<?> cls, String key, Object defaultValue) {
+        return config.getArray(cls, key, defaultValue);
+    }
+
+    @Override
+    public <T> List<T> getList(Class<T> cls, String key) {
+        return config.getList(cls, key);
+    }
+
+    @Override
+    public <T> List<T> getList(Class<T> cls, String key, List<T> defaultValue) {
+        return config.getList(cls, key, defaultValue);
+    }
+
+    @Override
+    public <T> Collection<T> getCollection(Class<T> cls, String key, Collection<T> target) {
+        return config.getCollection(cls, key, target);
+    }
+
+    @Override
+    public <T> Collection<T> getCollection(Class<T> cls, String key, Collection<T> target, Collection<T> defaultValue) {
+        return config.getCollection(cls, key, target, defaultValue);
+    }
+
+    @Override
+    public ImmutableConfiguration immutableSubset(String prefix) {
+        return config.immutableSubset(prefix);
+    }
+
+    @Override
+    public Synchronizer getSynchronizer() {
+        return config.getSynchronizer();
+    }
+
+    @Override
+    public void setSynchronizer(Synchronizer sync) {
+        config.setSynchronizer(sync);
+    }
+
+    @Override
+    public void lock(LockMode mode) {
+        config.lock(mode);
+    }
+
+    @Override
+    public void unlock(LockMode mode) {
+        config.unlock(mode);
+    }
+
+
+
     
 }

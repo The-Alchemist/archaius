@@ -27,8 +27,9 @@ import com.netflix.config.AbstractDynamicPropertyListener.EventType;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -45,14 +46,13 @@ public class DynamicPropertyUpdaterTest {
     }
 
     /**
-     * Test method for {@link com.charter.aesd.archaius.DynamicPropertyUpdater#updateProperties(com.netflix.config.WatchedUpdateResult, org.apache.commons.configuration.Configuration, boolean)}.
+     * Test method for {@link DynamicPropertyUpdater#updateProperties(WatchedUpdateResult, Configuration, boolean)}
      * @throws InterruptedException 
      */
     @Test
     public void testUpdateProperties() throws InterruptedException {
-        AbstractConfiguration.setDefaultListDelimiter(',');
-        AbstractConfiguration config  = new ConcurrentCompositeConfiguration();
-        config.addConfigurationListener(new ExpandedConfigurationListenerAdapter(new MyListener()));
+        ConcurrentCompositeConfiguration config = new ConcurrentCompositeConfiguration();
+        config.addEventListener(ConfigurationEvent.ANY, new ExpandedConfigurationListenerAdapter(new MyListener()));
         MyListener.resetCount();
         config.setProperty("test", "host,host1,host2");
         config.setProperty("test12", "host12");
@@ -72,9 +72,8 @@ public class DynamicPropertyUpdaterTest {
   
     @Test
     public void testAddorChangeProperty(){
-        AbstractConfiguration.setDefaultListDelimiter(',');
         AbstractConfiguration config  = new ConcurrentCompositeConfiguration();
-        config.addConfigurationListener(new ExpandedConfigurationListenerAdapter(new MyListener()));
+        config.addEventListener(ConfigurationEvent.ANY, new ExpandedConfigurationListenerAdapter(new MyListener()));
         MyListener.resetCount();
         config.setProperty("test.host", "test,test1,test2");
         assertEquals(1, MyListener.count);
@@ -111,9 +110,8 @@ public class DynamicPropertyUpdaterTest {
     
     @Test
     public void testAddorUpdatePropertyWithColonDelimiter(){
-        AbstractConfiguration.setDefaultListDelimiter(':');
         AbstractConfiguration config  = new ConcurrentCompositeConfiguration();
-        config.addConfigurationListener(new ExpandedConfigurationListenerAdapter(new MyListener()));
+        config.addEventListener(ConfigurationEvent.ANY, new ExpandedConfigurationListenerAdapter(new MyListener()));
         MyListener.resetCount();
         config.setProperty("test.host", "test:test1:test2");
         assertEquals(1, MyListener.count);

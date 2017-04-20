@@ -19,11 +19,13 @@ import com.netflix.config.jmx.ConfigJMXManager;
 import com.netflix.config.jmx.ConfigMBean;
 import com.netflix.config.util.ConfigurationUtils;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.EnvironmentConfiguration;
-import org.apache.commons.configuration.SystemConfiguration;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.EnvironmentConfiguration;
+import org.apache.commons.configuration2.SystemConfiguration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.Event;
+import org.apache.commons.configuration2.event.EventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,7 +214,7 @@ public class ConfigurationManager {
     
     static synchronized void setDirect(AbstractConfiguration config) {
         if (instance != null) {
-            Collection<ConfigurationListener> listeners = instance.getConfigurationListeners();
+            Collection<EventListener<? super ConfigurationEvent>> listeners = instance.getEventListeners(ConfigurationEvent.ANY);
             // transfer listeners
             // transfer properties which are not in conflict with new configuration
             for (Iterator<String> i = instance.getKeys(); i.hasNext();) {
@@ -223,7 +225,7 @@ public class ConfigurationManager {
                 }
             }
             if (listeners != null) {
-                for (ConfigurationListener listener: listeners) {
+                for (EventListener listener: listeners) {
                     if (listener instanceof ExpandedConfigurationListenerAdapter
                             && ((ExpandedConfigurationListenerAdapter) listener).getListener() 
                             instanceof DynamicProperty.DynamicPropertyListener) {
@@ -231,7 +233,7 @@ public class ConfigurationManager {
                         // with the new configuration
                         continue;
                     }
-                    config.addConfigurationListener(listener);
+                    config.addEventListener(ConfigurationEvent.ANY, listener);
                 }
             }
         }
@@ -412,12 +414,12 @@ public class ConfigurationManager {
         if (defaultFileConfig != null) {
             defaultFileConfig.stopLoading();
         }
-        Collection<ConfigurationListener> listeners = defaultConfig.getConfigurationListeners();
+        Collection<EventListener<? super ConfigurationEvent>> listeners = defaultConfig.getEventListeners(ConfigurationEvent.ANY);
         
         // find the listener and remove it so that DynamicProperty will no longer receives 
         // callback from the default configuration source
-        ConfigurationListener dynamicPropertyListener = null;
-        for (ConfigurationListener l: listeners) {
+        EventListener dynamicPropertyListener = null;
+        for (EventListener l: listeners) {
             if (l instanceof ExpandedConfigurationListenerAdapter
                     && ((ExpandedConfigurationListenerAdapter) l).getListener() 
                     instanceof DynamicProperty.DynamicPropertyListener) {
@@ -426,7 +428,7 @@ public class ConfigurationManager {
             }
         }
         if (dynamicPropertyListener != null) {
-            defaultConfig.removeConfigurationListener(dynamicPropertyListener);
+            defaultConfig.removeEventListener(ConfigurationEvent.ANY, dynamicPropertyListener);
         }
         if (configMBean != null) {
             try {

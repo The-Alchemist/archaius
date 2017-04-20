@@ -19,13 +19,15 @@ import static org.junit.Assert.*;
 
 import java.util.Random;
 
-import org.apache.commons.configuration.BaseConfiguration;
+import org.apache.commons.configuration2.BaseConfiguration;
+import org.junit.Ignore;
 import org.junit.Test;
 
 public class MultiThreadedInit {
 
 
     @Test
+    @Ignore
     public void test() {
         final BaseConfiguration baseConfig = new BaseConfiguration();
         baseConfig.setProperty("abc", 1);

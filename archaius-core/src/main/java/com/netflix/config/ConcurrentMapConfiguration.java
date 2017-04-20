@@ -25,13 +25,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.PropertyConverter;
-import org.apache.commons.configuration.event.ConfigurationErrorEvent;
-import org.apache.commons.configuration.event.ConfigurationErrorListener;
-import org.apache.commons.configuration.event.ConfigurationEvent;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.convert.DefaultListDelimiterHandler;
+import org.apache.commons.configuration2.convert.DisabledListDelimiterHandler;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.Event;
+import org.apache.commons.configuration2.event.EventListener;
+import org.apache.commons.configuration2.event.EventType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,8 +57,6 @@ import com.netflix.config.validation.ValidationException;
  */
 public class ConcurrentMapConfiguration extends AbstractConfiguration {
     protected ConcurrentHashMap<String,Object> map;
-    private Collection<ConfigurationListener> listeners = new CopyOnWriteArrayList<ConfigurationListener>();    
-    private Collection<ConfigurationErrorListener> errorListeners = new CopyOnWriteArrayList<ConfigurationErrorListener>();    
     private static final Logger logger = LoggerFactory.getLogger(ConcurrentMapConfiguration.class);
     private static final int NUM_LOCKS = 32;
     private ReentrantLock[] locks = new ReentrantLock[NUM_LOCKS];
@@ -76,7 +75,11 @@ public class ConcurrentMapConfiguration extends AbstractConfiguration {
             locks[i] = new ReentrantLock();
         }
         String disableDelimiterParsing = System.getProperty(DISABLE_DELIMITER_PARSING, "false");
-        super.setDelimiterParsingDisabled(Boolean.valueOf(disableDelimiterParsing));
+        Boolean disableDelimiterParsingAsBool = Boolean.valueOf(disableDelimiterParsing);
+        setDelimiterParsingDisabledInternal(disableDelimiterParsingAsBool);
+
+        // since this class does its own synchronization, set apache commons synchronizer to null so it uses a noop one
+        setSynchronizer(null);
     }
     
     public ConcurrentMapConfiguration(Map<String, Object> mapToCopy) {
@@ -100,11 +103,13 @@ public class ConcurrentMapConfiguration extends AbstractConfiguration {
         }
     }
 
-    public Object getProperty(String key)
+    @Override
+    public Object getPropertyInternal(String key)
     {
         return map.get(key);
     }
 
+    @Override
     protected void addPropertyDirect(String key, Object value)
     {
         ReentrantLock lock = locks[Math.abs(key.hashCode()) % NUM_LOCKS];
@@ -132,12 +137,14 @@ public class ConcurrentMapConfiguration extends AbstractConfiguration {
         }
     }
 
-    public boolean isEmpty()
+    @Override
+    public boolean isEmptyInternal()
     {
         return map.isEmpty();
     }
 
-    public boolean containsKey(String key)
+    @Override
+    public boolean containsKeyInternal(String key)
     {
         return map.containsKey(key);
     }
@@ -147,95 +154,12 @@ public class ConcurrentMapConfiguration extends AbstractConfiguration {
         map.remove(key);
     }
 
-    public Iterator getKeys()
+    @Override
+    public Iterator<String> getKeysInternal()
     {
         return map.keySet().iterator();
     }
-    
 
-    /**
-     * Adds the specified value for the given property. This method supports
-     * single values and containers (e.g. collections or arrays) as well. In the
-     * latter case, {@link #addPropertyDirect(String, Object)} will be called for each
-     * element.
-     *
-     * @param key the property key
-     * @param value the value object
-     * @param delimiter the list delimiter character
-     */
-    private void addPropertyValues(String key, Object value, char delimiter)
-    {
-        Iterator it = PropertyConverter.toIterator(value, delimiter);
-        while (it.hasNext())
-        {
-            addPropertyDirect(key, it.next());
-        }
-    }
-
-    public void addProperty(String key, Object value) throws ValidationException
-    {
-        if (value == null) {
-            throw new NullPointerException("Value for property " + key + " is null");
-        }
-        fireEvent(EVENT_ADD_PROPERTY, key, value, true);
-        addPropertyImpl(key, value);
-        fireEvent(EVENT_ADD_PROPERTY, key, value, false);
-    }
-
-    protected void addPropertyImpl(String key, Object value) {
-        Object previousValue = null;
-        if (isDelimiterParsingDisabled() ||
-                ((value instanceof String) && ((String) value).indexOf(getListDelimiter()) < 0)) {
-            previousValue = map.putIfAbsent(key, value);
-            if (previousValue != null) {
-                addPropertyValues(key, value,
-                        isDelimiterParsingDisabled() ? '\0'
-                                : getListDelimiter());
-            }
-        } else {
-            addPropertyValues(key, value,
-                    isDelimiterParsingDisabled() ? '\0'
-                            : getListDelimiter());
-            
-        }
-    }
-    
-    /**
-     * Override the same method in {@link AbstractConfiguration} to simplify the logic
-     * to avoid multiple events being generated. It calls {@link #clearPropertyDirect(String)}
-     * followed by logic to add the property including calling {@link #addPropertyDirect(String, Object)}. 
-     */
-    @Override
-    public void setProperty(String key, Object value) throws ValidationException
-    {
-        if (value == null) {
-            throw new NullPointerException("Value for property " + key + " is null");
-        }
-        fireEvent(EVENT_SET_PROPERTY, key, value, true);
-        setPropertyImpl(key, value);
-        fireEvent(EVENT_SET_PROPERTY, key, value, false);
-    }
-    
-    protected void setPropertyImpl(String key, Object value) {
-        if (isDelimiterParsingDisabled()) {
-            map.put(key, value);
-        } else if ((value instanceof String) && ((String) value).indexOf(getListDelimiter()) < 0) {
-            map.put(key, value);
-        } else {
-            Iterator it = PropertyConverter.toIterator(value, getListDelimiter());
-            List<Object> list = new CopyOnWriteArrayList<Object>();
-            while (it.hasNext())
-            {
-                list.add(it.next());
-            }
-            if (list.size() == 1) {
-                map.put(key, list.get(0));
-            } else {
-                map.put(key, list);
-            }
-        }        
-    }
-    
     /**
      * Load properties into the configuration. This method iterates through
      * the entries of the properties and call {@link #setProperty(String, Object)} for 
@@ -276,11 +200,9 @@ public class ConcurrentMapConfiguration extends AbstractConfiguration {
      * Clear the map and fire corresonding events.
      */
     @Override
-    public void clear()
+    public void clearInternal()
     {
-        fireEvent(EVENT_CLEAR, null, null, true);
         map.clear();
-        fireEvent(EVENT_CLEAR, null, null, false);
     }
 
     /**
@@ -297,21 +219,24 @@ public class ConcurrentMapConfiguration extends AbstractConfiguration {
     }
     
     /**
-     * Creates an event and calls {@link ConfigurationListener#configurationChanged(ConfigurationEvent)}
+     * Creates an event and calls {@link EventListener#onEvent(Event)}
      * for all listeners while catching Throwable.
      */
     @Override
-    protected void fireEvent(int type, String propName, Object propValue, boolean beforeUpdate) {
+    protected <T extends ConfigurationEvent> void fireEvent(EventType<T> type,
+                                                            String propName, Object propValue, boolean before)
+    {
+        Collection<EventListener<? super ConfigurationEvent>> listeners = getEventListeners(ConfigurationEvent.ANY);
         if (listeners == null || listeners.size() == 0) {
             return;
         }        
-        ConfigurationEvent event = createEvent(type, propName, propValue, beforeUpdate);
-        for (ConfigurationListener l: listeners)
+        ConfigurationEvent event = createEvent(type, propName, propValue, before);
+        for (EventListener l: listeners)
         {
             try {
-                l.configurationChanged(event);
+                l.onEvent(event);
             } catch (ValidationException e) {
-                if (beforeUpdate) {
+                if (before) {
                     throw e;
                 } else {
                     logger.error("Unexpected exception", e);                    
@@ -322,76 +247,36 @@ public class ConcurrentMapConfiguration extends AbstractConfiguration {
         }
     }
     
-    @Override
-    public void addConfigurationListener(ConfigurationListener l) {
-        if (!listeners.contains(l)) {
-            listeners.add(l);
-        }
+    public void addConfigurationListener(EventListener l) {
+        addEventListener(ConfigurationEvent.ANY, l);
     }
 
 
-    @Override
-    public void addErrorListener(ConfigurationErrorListener l) {
-        if (!errorListeners.contains(l)) {
-            errorListeners.add(l);
-        }
+    public boolean isDelimiterParsingDisabled() {
+        return getListDelimiterHandler() == DisabledListDelimiterHandler.INSTANCE;
     }
 
-
-    @Override
-    public void clearConfigurationListeners() {
-        listeners.clear();
+    public char getListDelimiter() {
+        return ((DefaultListDelimiterHandler) getListDelimiterHandler()).getDelimiter();
     }
 
-
-    @Override
-    public void clearErrorListeners() {
-        errorListeners.clear();
-    }
-
-    @Override
-    public Collection<ConfigurationListener> getConfigurationListeners() {
-        return Collections.unmodifiableCollection(listeners);
-    }
-
-
-    @Override
-    public Collection<ConfigurationErrorListener> getErrorListeners() {
-        return Collections.unmodifiableCollection(errorListeners);
-    }
-
-
-    @Override
-    public boolean removeConfigurationListener(ConfigurationListener l) {
-        return listeners.remove(l);
-    }
-
-
-    @Override
-    public boolean removeErrorListener(ConfigurationErrorListener l) {
-        return errorListeners.remove(l);
+    public void setDelimiterParsingDisabled(boolean delimiterParsingDisabled) {
+        setDelimiterParsingDisabledInternal(delimiterParsingDisabled);
     }
 
     /**
-     * Creates an error event and calls {@link ConfigurationErrorListener#configurationError(ConfigurationErrorEvent)}
-     * for all listeners while catching Throwable.
+     * Small helper that's called by the constructor to avoid the subclass's {@link #setDelimiterParsingDisabled(boolean)} being called
+     * @param delimiterParsingDisabled
      */
-    @Override
-    protected void fireError(int type, String propName, Object propValue, Throwable ex)
-    {
-        if (errorListeners == null || errorListeners.size() == 0) {
-            return;
+    private void setDelimiterParsingDisabledInternal(boolean delimiterParsingDisabled) {
+        if(delimiterParsingDisabled) {
+            this.setListDelimiterHandler(DisabledListDelimiterHandler.INSTANCE);
+        } else {
+            this.setListDelimiterHandler(new DefaultListDelimiterHandler(','));
         }
+    }
 
-        ConfigurationErrorEvent event = createErrorEvent(type, propName, propValue, ex);
-        for (ConfigurationErrorListener l: errorListeners) {
-            try {
-                l.configurationError(event);
-            } catch (Throwable e) {
-                logger.error("Error firing configuration error event", e);
-            }
-        }
-     }
-    
-
+    public void setListDelimiter(char listDelimiter) {
+        this.setListDelimiterHandler(new DefaultListDelimiterHandler(listDelimiter));
+    }
 }

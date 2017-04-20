@@ -17,10 +17,10 @@ package com.netflix.config;
 
 import com.google.common.base.Preconditions;
 
-import org.apache.commons.configuration.AbstractConfiguration;
-import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.event.ConfigurationEvent;
-import org.apache.commons.configuration.event.ConfigurationListener;
+import org.apache.commons.configuration2.AbstractConfiguration;
+import org.apache.commons.configuration2.Configuration;
+import org.apache.commons.configuration2.event.ConfigurationEvent;
+import org.apache.commons.configuration2.event.EventListener;
 
 /**
  * An implementation of {@link DeploymentContext} based on system wide configuration set with
@@ -67,13 +67,13 @@ public class ConfigurationBasedDeploymentContext extends SimpleDeploymentContext
     @Deprecated
     public static final String DEPLOYMENT_REGION_PROPERTY = "archaius.deployment.region";
 
-    private ConfigurationListener configListener = new ConfigurationListener() {
+    private EventListener<ConfigurationEvent> configListener = new EventListener<ConfigurationEvent>() {
         
         @Override
-        public void configurationChanged(ConfigurationEvent event) {
+        public void onEvent(ConfigurationEvent event) {
             if (event.isBeforeUpdate() 
-                    || (event.getType() != AbstractConfiguration.EVENT_ADD_PROPERTY
-                            && event.getType() != AbstractConfiguration.EVENT_SET_PROPERTY)) {
+                    || (event.getEventType() != ConfigurationEvent.ADD_PROPERTY
+                            && event.getEventType() != ConfigurationEvent.SET_PROPERTY)) {
                 return;
             }
             String name = event.getPropertyName();
@@ -131,7 +131,7 @@ public class ConfigurationBasedDeploymentContext extends SimpleDeploymentContext
             if (contextValue != null) {
                 setDeploymentServerId(contextValue);
             }    
-            config.addConfigurationListener(configListener);
+            config.addEventListener(ConfigurationEvent.ANY, configListener);
         }
     }
     
